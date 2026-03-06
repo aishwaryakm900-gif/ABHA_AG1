@@ -1,12 +1,16 @@
-import React, { useState, useRef } from 'react';
-import { Upload, FileText, Search, User, Hash } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Upload, FileText, User, Hash } from 'lucide-react';
+import { saveGlobalPrescription, getGlobalPrescriptions, saveProfileToDB, getProfileFromDB } from '../utils/storage';
+import type { UserProfile, UploadedDoc } from '../App';
 
-interface Prescription {
+export interface Prescription {
   id: string;
   patientName: string;
   abhaNumber: string;
-  file: File;
-  url: string;
+  fileName: string;
+  size: number;
+  type: string;
+  url: string; // the dataUrl
   uploadedAt: string;
   notes: string;
 }
@@ -16,32 +20,97 @@ const PrescriptionUpload: React.FC = () => {
   const [patientName, setPatientName] = useState('');
   const [abhaNumber, setAbhaNumber] = useState('');
   const [notes, setNotes] = useState('');
-  const [dragOver, setDragOver] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [uploadStatus, setUploadStatus] = useState<string>('');
   const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    // Load historical global prescriptions
+    getGlobalPrescriptions().then(data => {
+      // sort latest first
+      const sorted = data.sort((a,b) => new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime());
+      setPrescriptions(sorted);
+    });
+  }, []);
 
   const handleFile = (file: File) => {
     setSelectedFile(file);
   };
 
-  const handleUpload = () => {
+  const handleUpload = async () => {
     if (!selectedFile || !patientName) {
       alert('Please select a file and enter the patient name.');
       return;
     }
-    const url = URL.createObjectURL(selectedFile);
-    const p: Prescription = {
-      id: Date.now().toString(),
-      patientName, abhaNumber, notes,
-      file: selectedFile, url,
-      uploadedAt: new Date().toLocaleString('en-IN'),
+    
+    // Convert to Base64 so it can be stored globally in IndexedDB
+    const reader = new FileReader();
+    reader.onload = async () => {
+      const dataUrl = reader.result as string;
+
+      const p: Prescription = {
+        id: Date.now().toString(),
+        patientName, abhaNumber, notes,
+        fileName: selectedFile.name,
+        size: selectedFile.size,
+        type: selectedFile.type,
+        url: dataUrl,
+        uploadedAt: new Date().toLocaleString('en-IN'),
+      };
+      
+      // Save to global prescriptions
+      await saveGlobalPrescription(p);
+      setPrescriptions(prev => [p, ...prev]);
+
+      // If ABHA number is provided, also add to patient's health reports
+      if (abhaNumber.trim()) {
+        try {
+          const profile = await getProfileFromDB();
+          if (profile && profile.abhaNumber === abhaNumber) {
+            // Create UploadedDoc from prescription
+            const uploadedDoc: UploadedDoc = {
+              id: `prescription-${p.id}`,
+              name: `Prescription - ${p.fileName}`,
+              size: p.size,
+              type: p.type,
+              url: p.url,
+              content: p.url,
+              uploadedAt: p.uploadedAt,
+              analysis: `Prescription uploaded by doctor. Notes: ${p.notes || 'No additional notes'}`,
+            };
+
+            // Add to user's uploaded docs
+            const updatedProfile: UserProfile = {
+              ...profile,
+              uploadedDocs: [uploadedDoc, ...profile.uploadedDocs],
+            };
+
+            await saveProfileToDB(updatedProfile);
+            setUploadStatus('✅ Prescription uploaded and added to patient health reports');
+            console.log('Prescription also added to patient health reports');
+          } else {
+            setUploadStatus('⚠️ Prescription uploaded globally (patient profile not found)');
+            console.log('Patient profile not found or ABHA number mismatch - prescription saved globally only');
+          }
+        } catch (error) {
+          setUploadStatus('⚠️ Prescription uploaded globally (error adding to patient reports)');
+          console.error('Error adding prescription to patient health reports:', error);
+        }
+      } else {
+        setUploadStatus('✅ Prescription uploaded globally');
+      }
+
+      // Clear status after 5 seconds
+      setTimeout(() => setUploadStatus(''), 5000);
+
+      setSelectedFile(null);
+      setPatientName('');
+      setAbhaNumber('');
+      setNotes('');
+      if (inputRef.current) inputRef.current.value = '';
     };
-    setPrescriptions(prev => [p, ...prev]);
-    setSelectedFile(null);
-    setPatientName('');
-    setAbhaNumber('');
-    setNotes('');
-    if (inputRef.current) inputRef.current.value = '';
+    reader.readAsDataURL(selectedFile);
   };
 
   return (
@@ -96,6 +165,21 @@ const PrescriptionUpload: React.FC = () => {
         <button className="btn btn-primary" onClick={handleUpload} disabled={!selectedFile || !patientName}>
           <Upload size={15} /> Upload Prescription
         </button>
+
+        {uploadStatus && (
+          <div style={{
+            padding: '8px 12px',
+            borderRadius: 'var(--radius-md)',
+            background: uploadStatus.includes('✅') ? 'rgba(34,197,94,0.1)' : 'rgba(251,191,36,0.1)',
+            border: `1px solid ${uploadStatus.includes('✅') ? 'rgba(34,197,94,0.3)' : 'rgba(251,191,36,0.3)'}`,
+            color: uploadStatus.includes('✅') ? '#166534' : '#92400e',
+            fontSize: 13,
+            fontWeight: 600,
+            textAlign: 'center',
+          }}>
+            {uploadStatus}
+          </div>
+        )}
       </div>
 
       {/* Prescriptions list */}
@@ -124,7 +208,7 @@ const PrescriptionUpload: React.FC = () => {
                       </div>
                     )}
                     <div style={{ fontSize: 12, color: 'var(--color-text4)', marginBottom: 6 }}>
-                      📎 {p.file.name} · {p.uploadedAt}
+                      📎 {p.fileName} · {p.uploadedAt}
                     </div>
                     {p.notes && (
                       <div style={{

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Salad, Leaf, ChevronRight, Apple, Dumbbell, Heart } from 'lucide-react';
+import { Leaf, ChevronRight, Dumbbell, Heart } from 'lucide-react';
 
 const MEAL_PLANS: Record<string, { breakfast: string; lunch: string; dinner: string; snack: string; kcal: number }[]> = {
   maintain: [
@@ -37,8 +37,62 @@ const DietPlanning: React.FC = () => {
   const [goal, setGoal] = useState<'maintain' | 'loss'>('maintain');
   const [selectedDay, setSelectedDay] = useState(0);
   const [openRemedy, setOpenRemedy] = useState<number | null>(null);
+  
+  // New States for user preferences
+  const [dietRequirement, setDietRequirement] = useState('');
+  const [workoutTime, setWorkoutTime] = useState('');
+  const [preferencesSubmitted, setPreferencesSubmitted] = useState(false);
 
   const plan = MEAL_PLANS[goal][selectedDay];
+
+  if (!preferencesSubmitted) {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24, animation: 'fadeIn 0.3s ease' }}>
+        <div>
+          <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>Diet Planning</h2>
+          <p style={{ color: 'var(--color-text3)', fontSize: 14 }}>Let's personalize your diet plan.</p>
+        </div>
+        
+        <div className="card" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+          <div className="input-group">
+            <label>Any specific diet requirements? (e.g., Vegan, Gluten-free, Standard)</label>
+            <input 
+              className="input" 
+              placeholder="Enter your diet requirements..." 
+              value={dietRequirement}
+              onChange={(e) => setDietRequirement(e.target.value)}
+            />
+          </div>
+          <div className="input-group">
+            <label>When is your preferred time to workout?</label>
+            <select 
+              className="input" 
+              value={workoutTime}
+              onChange={(e) => setWorkoutTime(e.target.value)}
+              style={{ appearance: 'auto' }}
+            >
+              <option value="" disabled>Select a time</option>
+              <option value="Morning (6AM - 9AM)">Morning (6AM - 9AM)</option>
+              <option value="Afternoon (12PM - 3PM)">Afternoon (12PM - 3PM)</option>
+              <option value="Evening (5PM - 8PM)">Evening (5PM - 8PM)</option>
+              <option value="Night (8PM onwards)">Night (8PM onwards)</option>
+              <option value="No workout">I don't workout</option>
+            </select>
+          </div>
+          <button 
+            className="btn btn-primary" 
+            onClick={() => {
+              if (dietRequirement && workoutTime) setPreferencesSubmitted(true);
+            }}
+            disabled={!dietRequirement || !workoutTime}
+            style={{ marginTop: 8 }}
+          >
+            Generate My Plan
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 28 }}>
@@ -65,6 +119,15 @@ const DietPlanning: React.FC = () => {
             <div style={{ fontSize: 12, color: 'var(--color-text4)' }}>{g.desc}</div>
           </button>
         ))}
+      </div>
+
+      <div style={{ background: 'var(--color-bg3)', padding: '12px 16px', borderRadius: 'var(--radius-md)', fontSize: 13, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div>
+          <span style={{ color: 'var(--color-text3)' }}>Diet: </span><strong>{dietRequirement}</strong>
+          <span style={{ margin: '0 8px', color: 'var(--color-border)' }}>|</span>
+          <span style={{ color: 'var(--color-text3)' }}>Workout: </span><strong>{workoutTime}</strong>
+        </div>
+        <button className="btn btn-ghost btn-sm" onClick={() => setPreferencesSubmitted(false)} style={{ padding: '4px 8px', fontSize: 11 }}>Edit</button>
       </div>
 
       {/* Day selector */}

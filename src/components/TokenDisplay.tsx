@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { QRCodeSVG } from 'qrcode.react';
-import { Printer, X, Hash, Phone, Building2, Calendar, Clock, User, Droplet, AlertTriangle, PhoneCall } from 'lucide-react';
+import { Printer, X, Hash, Phone, Building2, Calendar, Clock, User, Droplet, AlertTriangle, PhoneCall, XCircle } from 'lucide-react';
 import type { Token } from '../utils/tokenUtils';
 import { buildQRPayload } from '../utils/tokenUtils';
 
@@ -8,9 +8,10 @@ interface Props {
   tokens: Token[];
   onClose?: () => void;
   showClose?: boolean;
+  onCancelToken?: (tokenId: string) => void;
 }
 
-const TokenDisplay: React.FC<Props> = ({ tokens, onClose, showClose = true }) => {
+const TokenDisplay: React.FC<Props> = ({ tokens, onClose, showClose = true, onCancelToken }) => {
   const handlePrint = () => window.print();
 
   return (
@@ -25,32 +26,53 @@ const TokenDisplay: React.FC<Props> = ({ tokens, onClose, showClose = true }) =>
             <Printer size={14} /> Print
           </button>
           {showClose && onClose && (
-            <button className="btn btn-ghost btn-sm no-print" onClick={onClose}><X size={14} /></button>
+            <button 
+              className="btn btn-ghost btn-sm no-print" 
+              onClick={onClose}
+            >
+              <X size={14} />
+            </button>
           )}
         </div>
       </div>
 
       <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
-        {tokens.map(token => <TokenCard key={token.id} token={token} />)}
+        {tokens.map(token => <TokenCard key={token.id} token={token} onCancel={onCancelToken} />)}
       </div>
     </div>
   );
 };
 
-const TokenCard: React.FC<{ token: Token }> = ({ token }) => {
-  const payload = buildQRPayload(token, token.phone);
+const TokenCard: React.FC<{ token: Token; onCancel?: (tokenId: string) => void }> = ({ token, onCancel }) => {
+  const [showRefund, setShowRefund] = useState(false);
+  const payload = buildQRPayload(token);
   const qrString = JSON.stringify(payload);
+
+  const handleCancel = () => {
+    if (onCancel) {
+      onCancel(token.id);
+      setShowRefund(true);
+      setTimeout(() => setShowRefund(false), 3000);
+    }
+  };
+
+  const isCancelled = token.status === 'cancelled';
 
   return (
     <div
       className="token-print-area"
       style={{
-        background: 'linear-gradient(145deg, #0b1f14 0%, #102a1c 40%, #0b1f14 100%)',
-        border: '2px solid rgba(34,197,94,0.35)',
+        background: isCancelled 
+          ? 'linear-gradient(145deg, #1f2937 0%, #374151 40%, #1f2937 100%)'
+          : 'linear-gradient(145deg, #0b1f14 0%, #102a1c 40%, #0b1f14 100%)',
+        border: isCancelled 
+          ? '2px solid rgba(156,163,175,0.35)'
+          : '2px solid rgba(34,197,94,0.35)',
         borderRadius: 20,
         overflow: 'hidden',
         boxShadow: '0 8px 40px rgba(0,0,0,0.7), inset 0 1px 0 rgba(255,255,255,0.05)',
         position: 'relative',
+        opacity: isCancelled ? 0.7 : 1,
       }}
     >
       {/* Decorative pattern */}
@@ -89,13 +111,53 @@ const TokenCard: React.FC<{ token: Token }> = ({ token }) => {
           borderRadius: 12,
           padding: '8px 18px',
           textAlign: 'center',
+          position: 'relative',
         }}>
           <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)', letterSpacing: 1 }}>TOKEN NO.</div>
           <div style={{ fontSize: 32, fontWeight: 900, color: '#fff', lineHeight: 1 }}>
             #{String(token.tokenNumber).padStart(3, '0')}
           </div>
           <div style={{ fontSize: 10, color: 'rgba(255,255,255,0.7)' }}>{token.department}</div>
+          {isCancelled && (
+            <div style={{
+              position: 'absolute', top: -8, right: -8,
+              background: '#f87171', color: '#fff', borderRadius: '50%',
+              width: 24, height: 24, display: 'flex', alignItems: 'center', justifyContent: 'center',
+              fontSize: 12, fontWeight: 700,
+            }}>
+              <XCircle size={12} />
+            </div>
+          )}
         </div>
+        {/* Cancel button */}
+        {!isCancelled && onCancel && (
+          <button
+            onClick={handleCancel}
+            style={{
+              background: 'rgba(239,68,68,0.1)',
+              border: '1px solid rgba(239,68,68,0.3)',
+              borderRadius: 8,
+              padding: '6px 12px',
+              color: '#f87171',
+              fontSize: 11,
+              fontWeight: 600,
+              cursor: 'pointer',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 4,
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = 'rgba(239,68,68,0.2)';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = 'rgba(239,68,68,0.1)';
+            }}
+          >
+            <XCircle size={12} />
+            Cancel Token
+          </button>
+        )}
       </div>
 
       {/* ── BODY ── */}
@@ -127,7 +189,7 @@ const TokenCard: React.FC<{ token: Token }> = ({ token }) => {
 
           {/* 2-column info grid */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
-            <InfoCell icon={<Phone size={13} />} label="Mobile" value={token.phone} color="#60a5fa" />
+            <InfoCell icon={<Phone size={13} />} label="Mobile" value={token.phone || 'Not provided'} color="#60a5fa" />
             <InfoCell icon={<Hash size={13} />} label="ABHA Number" value={token.abhaNumber} color="#a78bfa" />
             <InfoCell icon={<Building2 size={13} />} label="Department" value={token.department} color="#34d399" />
             <InfoCell icon={<Calendar size={13} />} label="Date" value={token.date} color="#fbbf24" />
@@ -205,6 +267,33 @@ const TokenCard: React.FC<{ token: Token }> = ({ token }) => {
           </div>
         </div>
       </div>
+
+      {/* Refund message */}
+      {showRefund && (
+        <div style={{
+          background: 'linear-gradient(135deg, #dcfce7, #bbf7d0)',
+          border: '1px solid #86efac',
+          borderRadius: 12,
+          padding: '12px 16px',
+          marginTop: 12,
+          display: 'flex',
+          alignItems: 'center',
+          gap: 10,
+          animation: 'fadeIn 0.3s ease',
+        }}>
+          <div style={{
+            width: 24, height: 24, borderRadius: '50%',
+            background: '#22c55e', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            color: '#fff', fontSize: 12, fontWeight: 700,
+          }}>
+            ₹
+          </div>
+          <div>
+            <div style={{ fontSize: 14, fontWeight: 700, color: '#166534' }}>Token Cancelled Successfully</div>
+            <div style={{ fontSize: 12, color: '#166534', opacity: 0.8 }}>₹10 has been refunded to your account</div>
+          </div>
+        </div>
+      )}
 
       {/* ── FOOTER STRIP ── */}
       <div style={{

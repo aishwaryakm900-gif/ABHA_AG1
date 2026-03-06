@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { Mic, MicOff, Download, Trash2, Play, Pause, Square } from 'lucide-react';
+import { Mic, Download, Trash2, Play, Pause, Square } from 'lucide-react';
 
 interface Recording {
   id: string;

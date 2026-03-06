@@ -2,18 +2,24 @@ import React, { useState } from 'react';
 import {
   LayoutDashboard, FileText, Salad, Ticket, LogOut,
   Activity, Pill, Heart, TrendingUp,
-  Sun, Moon
+  Sun, Moon, MessageCircle, Mic, Clock, ClipboardList,
+  Bell, AlertTriangle, CreditCard, Accessibility, ChevronDown, ChevronUp
 } from 'lucide-react';
 import HealthReports from '../components/HealthReports';
 import DietPlanning from '../components/DietPlanning';
 import AIAgent from '../components/AIAgent';
 import TokenDisplay from '../components/TokenDisplay';
+import HealthChat from '../components/HealthChat';
+import VisitRecorder from '../components/VisitRecorder';
+import HealthTimeline from '../components/HealthTimeline';
+import MedicineReminders from '../components/MedicineReminders';
+import EmergencyCard from '../components/EmergencyCard';
 import type { Token } from '../utils/tokenUtils';
 import type { UserData } from '../components/AIAgent';
 import type { UserProfile, UploadedDoc } from '../App';
 
 interface Props {
-  phone: string;
+  email: string;
   profile: UserProfile | null;
   onProfileUpdate: (p: UserProfile) => void;
   onLogout: () => void;
@@ -21,34 +27,49 @@ interface Props {
   toggleTheme: () => void;
 }
 
-type Tab = 'dashboard' | 'reports' | 'diet' | 'token';
+type Tab = 'dashboard' | 'reports' | 'diet' | 'token' | 'chat' | 'visit' | 'timeline' | 'reminders' | 'emergency';
 
-// Activity history items (defined at module level — sorted inside component)
-const ACTIVITIES: Array<{icon:string;title:string;detail:string;type:string;color:string;date:string}> = [
-  { icon: '🩸', title: 'Blood Test Report Uploaded', detail: 'CBC + LFT Panel · Jan 15, 2026', type: 'report', color: '#ef4444', date: '2026-01-15' },
-  { icon: '🏥', title: 'Visited Cardiology - City Hospital', detail: 'Token #014 · Jan 10, 2026', type: 'visit', color: '#3b82f6', date: '2026-01-10' },
-  { icon: '💊', title: 'Prescription Added', detail: 'Dr. Sharma · Jan 8, 2026', type: 'prescription', color: '#8b5cf6', date: '2026-01-08' },
-  { icon: '🌡️', title: 'Routine Checkup Completed', detail: 'General Medicine · Dec 28, 2025', type: 'visit', color: '#22c55e', date: '2025-12-28' },
-  { icon: '🦷', title: 'X-Ray Report Uploaded', detail: 'Dental · Dec 20, 2025', type: 'report', color: '#f59e0b', date: '2025-12-20' },
-];
-
-const UserDashboard: React.FC<Props> = ({ phone, profile, onProfileUpdate, onLogout, theme, toggleTheme }) => {
+const UserDashboard: React.FC<Props> = ({ email, profile, onProfileUpdate, onLogout, theme, toggleTheme }) => {
   const [tab, setTab] = useState<Tab>('dashboard');
   const [showAIAgent, setShowAIAgent] = useState(false);
   const [tokens, setTokens] = useState<Token[]>([]);
   const [showToken, setShowToken] = useState(false);
+  const [isAIExpanded, setIsAIExpanded] = useState(false);
+  const [editingProfile, setEditingProfile] = useState(false);
+  const [draftProfile, setDraftProfile] = useState<Partial<UserProfile>>({});
 
-  // Sort activities: new users see OLDEST first; returning users see NEWEST first
+  // Sort activities based on actual user docs + tokens (No dummy data)
   const sortedActivities = React.useMemo(() => {
-    const ascending = [...ACTIVITIES].sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
-    const isReturningUser = profile && profile.uploadedDocs && profile.uploadedDocs.length > 0;
-    return isReturningUser ? [...ascending].reverse() : ascending;
-  }, [profile]);
+    const activities: Array<{icon:string;title:string;detail:string;type:string;color:string;date:string}> = [];
+    
+    profile?.uploadedDocs?.forEach(doc => {
+      activities.push({
+        icon: '📄',
+        title: `Uploaded: ${doc.name}`,
+        detail: `Size: ${(doc.size / 1024).toFixed(0)}KB`,
+        type: 'report',
+        color: '#3b82f6',
+        date: doc.uploadedAt || new Date().toISOString()
+      });
+    });
 
-  // Convert UserData (from AIAgent) into a UserProfile and persist it
+    tokens.forEach(t => {
+      activities.push({
+        icon: '🎫',
+        title: `Token Generated: ${t.department}`,
+        detail: `Token #${t.tokenNumber}`,
+        type: 'visit',
+        color: '#8b5cf6',
+        date: new Date().toISOString()
+      });
+    });
+
+    return activities.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }, [profile, tokens]);
   const handleUserDataSave = (data: UserData) => {
     onProfileUpdate({
       ...data,
+      email: profile?.email || email,
       uploadedDocs: profile?.uploadedDocs ?? [],
     });
   };
@@ -57,7 +78,7 @@ const UserDashboard: React.FC<Props> = ({ phone, profile, onProfileUpdate, onLog
   const handleDocsChange = (docs: UploadedDoc[]) => {
     onProfileUpdate({
       name: profile?.name ?? '',
-      phone: profile?.phone ?? phone,
+      email: profile?.email ?? email,
       age: profile?.age ?? '',
       emergency: profile?.emergency ?? '',
       allergies: profile?.allergies ?? '',
@@ -70,7 +91,7 @@ const UserDashboard: React.FC<Props> = ({ phone, profile, onProfileUpdate, onLog
   // Build AIAgent-compatible UserData from stored profile
   const existingUserData: UserData | null = profile ? {
     name: profile.name,
-    phone: profile.phone,
+    phone: profile.email, // AIAgent uses 'phone' conceptually for contact
     age: profile.age,
     emergency: profile.emergency,
     allergies: profile.allergies,
@@ -90,7 +111,20 @@ const UserDashboard: React.FC<Props> = ({ phone, profile, onProfileUpdate, onLog
     { id: 'reports', label: 'Health Reports', icon: <FileText size={18} /> },
     { id: 'diet', label: 'Diet Planning', icon: <Salad size={18} /> },
     { id: 'token', label: 'Token', icon: <Ticket size={18} /> },
+    // ─── New AI Modules ─────────────────────────────────────
+    { id: 'chat', label: 'AI Health Chat', icon: <MessageCircle size={18} /> },
+    { id: 'visit', label: 'Visit Recorder', icon: <Mic size={18} /> },
+    { id: 'timeline', label: 'Health Timeline', icon: <Clock size={18} /> },
+  
+    { id: 'reminders', label: 'Medicine Reminders', icon: <Bell size={18} /> },
+  
+    { id: 'emergency', label: 'Emergency Card', icon: <CreditCard size={18} /> },
+    
   ];
+
+  // Split for sidebar: first 4 = primary, rest = AI modules
+  const NAV_PRIMARY = nav.slice(0, 4);
+  const NAV_AI = nav.slice(4);
 
   return (
     <div className="dashboard-layout">
@@ -110,19 +144,47 @@ const UserDashboard: React.FC<Props> = ({ phone, profile, onProfileUpdate, onLog
             border: '1px solid rgba(26,107,60,0.2)',
           }}>
             <div style={{ fontSize: 11, color: 'var(--color-text4)' }}>Logged in as</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--color-primary-light)' }}>
-              +91 {phone.slice(-10)}
+            <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--color-primary-light)', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+              {email}
             </div>
           </div>
         </div>
 
         <nav className="sidebar-nav">
-          {nav.map(item => (
+          {NAV_PRIMARY.map(item => (
             <button key={item.id} className={`sidebar-item ${tab === item.id ? 'active' : ''}`}
               onClick={() => { setTab(item.id as Tab); setShowToken(false); }}>
               {item.icon} <span>{item.label}</span>
             </button>
           ))}
+          
+          <div 
+            onClick={() => setIsAIExpanded(!isAIExpanded)}
+            style={{ 
+              display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer',
+              margin: '12px 0 4px', padding: '6px 14px', borderRadius: 'var(--radius-md)',
+              transition: 'var(--transition)'
+            }}
+            className="sidebar-item"
+          >
+            <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: 1, color: 'var(--color-text4)' }}>
+              AI Modules
+            </span>
+            {isAIExpanded ? <ChevronUp size={14} color="var(--color-text4)" /> : <ChevronDown size={14} color="var(--color-text4)" />}
+          </div>
+          
+          <div style={{
+            display: 'flex', flexDirection: 'column', gap: 4,
+            overflow: 'hidden', transition: 'max-height 0.3s ease-in-out',
+            maxHeight: isAIExpanded ? '400px' : '0'
+          }}>
+            {NAV_AI.map(item => (
+              <button key={item.id} className={`sidebar-item ${tab === item.id ? 'active' : ''}`}
+                onClick={() => { setTab(item.id as Tab); setShowToken(false); }}>
+                {item.icon} <span>{item.label}</span>
+              </button>
+            ))}
+          </div>
         </nav>
 
         <div className="sidebar-footer" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -150,13 +212,12 @@ const UserDashboard: React.FC<Props> = ({ phone, profile, onProfileUpdate, onLog
               {profile ? "Here's your health overview" : "Start exploring your health dashboard"}
             </p>
 
-            {/* Stat cards */}
+            {/* Stat cards based on actual data */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(200px,1fr))', gap: 14, marginBottom: 28 }}>
               {[
-                { icon: <Activity size={22} />, label: 'Health Reports', value: '5', sub: '2 new this month', bg: '#ef4444', iconBg: 'rgba(239,68,68,0.15)' },
-                { icon: <Heart size={22} />, label: 'Visits This Year', value: '8', sub: 'Last: Jan 10', bg: '#3b82f6', iconBg: 'rgba(59,130,246,0.15)' },
-                { icon: <Pill size={22} />, label: 'Active Prescriptions', value: '2', sub: 'Updated Jan 8', bg: '#8b5cf6', iconBg: 'rgba(139,92,246,0.15)' },
-                { icon: <TrendingUp size={22} />, label: 'Health Score', value: '86%', sub: 'Good condition', bg: '#22c55e', iconBg: 'rgba(34,197,94,0.15)' },
+                { icon: <Activity size={22} />, label: 'Health Reports', value: profile?.uploadedDocs?.length || 0, sub: 'Total uploaded', bg: '#ef4444', iconBg: 'rgba(239,68,68,0.15)' },
+                { icon: <Heart size={22} />, label: 'Tokens Generated', value: tokens.length, sub: 'Recent visits', bg: '#3b82f6', iconBg: 'rgba(59,130,246,0.15)' },
+                { icon: <Pill size={22} />, label: 'Profile Completion', value: profile?.name && profile?.age ? '100%' : '50%', sub: 'Setup your details', bg: '#8b5cf6', iconBg: 'rgba(139,92,246,0.15)' },
               ].map(s => (
                 <div key={s.label} className="stat-card">
                   <div className="stat-icon" style={{ background: s.iconBg, color: s.bg }}>
@@ -171,12 +232,60 @@ const UserDashboard: React.FC<Props> = ({ phone, profile, onProfileUpdate, onLog
               ))}
             </div>
 
+            {/* Editing Profile Area */}
+            {(!profile?.name || editingProfile) && (
+              <div className="card animate-fadeIn" style={{ marginBottom: 24, padding: 24, border: '1px solid var(--color-primary)' }}>
+                <h3 style={{ fontSize: 18, fontWeight: 700, marginBottom: 16 }}>Complete Your Profile</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+                  <div className="input-group">
+                    <label>Full Name</label>
+                    <input className="input" value={draftProfile.name || profile?.name || ''} onChange={e => setDraftProfile({...draftProfile, name: e.target.value})} placeholder="E.g. Ramesh Kumar" />
+                  </div>
+                  <div className="input-group">
+                    <label>Age</label>
+                    <input className="input" type="number" value={draftProfile.age || profile?.age || ''} onChange={e => setDraftProfile({...draftProfile, age: e.target.value})} placeholder="E.g. 34" />
+                  </div>
+                  <div className="input-group">
+                    <label>Blood Group</label>
+                    <input className="input" value={draftProfile.bloodGroup || profile?.bloodGroup || ''} onChange={e => setDraftProfile({...draftProfile, bloodGroup: e.target.value})} placeholder="E.g. O+" />
+                  </div>
+                  <div className="input-group">
+                    <label>Allergies</label>
+                    <input className="input" value={draftProfile.allergies || profile?.allergies || ''} onChange={e => setDraftProfile({...draftProfile, allergies: e.target.value})} placeholder="E.g. Peanuts" />
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 12 }}>
+                  <button className="btn btn-primary" onClick={() => {
+                    onProfileUpdate({
+                      email,
+                      name: draftProfile.name || profile?.name || '',
+                      age: draftProfile.age || profile?.age || '',
+                      bloodGroup: draftProfile.bloodGroup || profile?.bloodGroup || '',
+                      allergies: draftProfile.allergies || profile?.allergies || '',
+                      emergency: profile?.emergency || '',
+                      abhaNumber: profile?.abhaNumber || '',
+                      uploadedDocs: profile?.uploadedDocs || []
+                    });
+                    setEditingProfile(false);
+                  }}>Save Profile</button>
+                  {profile?.name && <button className="btn btn-ghost" onClick={() => setEditingProfile(false)}>Cancel</button>}
+                </div>
+              </div>
+            )}
+            {profile?.name && !editingProfile && (
+               <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+                 <button className="btn btn-ghost btn-sm" onClick={() => { setDraftProfile(profile); setEditingProfile(true); }}>
+                   Edit Profile
+                 </button>
+               </div>
+            )}
+
             {/* Activity timeline + Quick actions — responsive grid */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 20 }}>
               <div>
                 <h2 style={{ fontWeight: 700, fontSize: 17, marginBottom: 16 }}>Recent Activity</h2>
                 <div className="timeline">
-                  {sortedActivities.map((a, i) => (
+                  {sortedActivities.length > 0 ? sortedActivities.map((a, i) => (
                     <div key={i} className="timeline-item">
                       <div className="timeline-dot" style={{ background: `${a.color}20`, borderColor: a.color }}>
                         <span style={{ fontSize: 16 }}>{a.icon}</span>
@@ -186,7 +295,11 @@ const UserDashboard: React.FC<Props> = ({ phone, profile, onProfileUpdate, onLog
                         <div style={{ fontSize: 12, color: 'var(--color-text4)', marginTop: 2 }}>{a.detail}</div>
                       </div>
                     </div>
-                  ))}
+                  )) : (
+                    <div style={{ color: 'var(--color-text3)', fontSize: 14, fontStyle: 'italic' }}>
+                      No recent activity. Start by uploading a report or generating a token!
+                    </div>
+                  )}
                 </div>
               </div>
 
@@ -198,6 +311,9 @@ const UserDashboard: React.FC<Props> = ({ phone, profile, onProfileUpdate, onLog
                     { emoji: '🎫', label: 'Generate Hospital Token', desc: 'Quickly get your next visit token', action: () => setShowAIAgent(true) },
                     { emoji: '📄', label: 'Upload Health Report', desc: 'Add new medical document', action: () => setTab('reports') },
                     { emoji: '🥗', label: 'View Diet Plan', desc: 'Check today\'s meal recommendations', action: () => setTab('diet') },
+                    { emoji: '🤖', label: 'Ask AI Health Assistant', desc: 'Get plain-language health answers', action: () => setTab('chat') },
+                    { emoji: '🚑', label: 'Emergency Health Card', desc: 'View your emergency card', action: () => setTab('emergency') },
+                    { emoji: '🕐', label: 'Health Timeline', desc: 'See your health history', action: () => setTab('timeline') },
                   ].map(q => (
                     <button key={q.label} onClick={q.action}
                       className="card" style={{
@@ -223,6 +339,35 @@ const UserDashboard: React.FC<Props> = ({ phone, profile, onProfileUpdate, onLog
         {tab === 'reports' && <HealthReports docs={profile?.uploadedDocs} onDocsChange={handleDocsChange} />}
         {tab === 'diet' && <DietPlanning />}
 
+        {/* ─── New AI Modules ─────────────────── */}
+        {tab === 'chat' && (
+          <div className="animate-fadeIn">
+            <HealthChat />
+          </div>
+        )}
+        {tab === 'visit' && (
+          <div className="animate-fadeIn">
+            <VisitRecorder />
+          </div>
+        )}
+        {tab === 'timeline' && (
+          <div className="animate-fadeIn">
+            <HealthTimeline docs={profile?.uploadedDocs} />
+          </div>
+        )}
+       
+        {tab === 'reminders' && (
+          <div className="animate-fadeIn">
+            <MedicineReminders />
+          </div>
+        )}
+       
+        {tab === 'emergency' && (
+          <div className="animate-fadeIn">
+            <EmergencyCard profile={profile} onProfileUpdate={onProfileUpdate} />
+          </div>
+        )}
+    
         {tab === 'token' && (
           <div className="animate-fadeIn">
             <h1 style={{ fontSize: 26, fontWeight: 800, marginBottom: 4 }}>Token Generation</h1>
@@ -276,9 +421,9 @@ const UserDashboard: React.FC<Props> = ({ phone, profile, onProfileUpdate, onLog
         />
       )}
 
-      {/* Mobile bottom navigation */}
+      {/* Mobile bottom navigation — shows primary tabs only */}
       <nav className="mobile-nav">
-        {nav.map(item => (
+        {NAV_PRIMARY.map(item => (
           <button key={item.id}
             className={`mobile-nav-item ${tab === item.id ? 'active' : ''}`}
             onClick={() => { setTab(item.id as Tab); setShowToken(false); }}>
@@ -286,6 +431,11 @@ const UserDashboard: React.FC<Props> = ({ phone, profile, onProfileUpdate, onLog
             <span>{item.label}</span>
           </button>
         ))}
+        <button className="mobile-nav-item" onClick={() => { setTab('chat'); setShowToken(false); }}
+          style={{ color: tab === 'chat' ? 'var(--color-primary-light)' : undefined }}>
+          <MessageCircle size={18} />
+          <span>AI Chat</span>
+        </button>
         <button className="mobile-nav-item" onClick={toggleTheme}>
           {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
           <span>{theme === 'dark' ? 'Light' : 'Dark'}</span>

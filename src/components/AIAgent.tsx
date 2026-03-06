@@ -1,5 +1,5 @@
 import React, { useState, useRef } from 'react';
-import { X, Phone, Shield, User, Stethoscope, MessageSquare, Mic, MicOff, Globe } from 'lucide-react';
+import { X, MessageSquare, Mic, MicOff } from 'lucide-react';
 import { useTranslation } from 'react-i18next';
 import i18n from '../i18n';
 import { generateABHANumber, generateToken, type Token } from '../utils/tokenUtils';
@@ -51,7 +51,7 @@ const AIAgent: React.FC<Props> = ({ onClose, onTokenGenerated, existingUserData,
   const [userData, setUserData] = useState<Partial<UserData>>({});
   const [paymentConfirmed, setPaymentConfirmed] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
-  const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const recognitionRef = useRef<any>(null);
 
   const addAI = (text: string, delay = 800) => {
     setIsTyping(true);
@@ -200,7 +200,7 @@ const AIAgent: React.FC<Props> = ({ onClose, onTokenGenerated, existingUserData,
       const recognition = new SR();
       recognition.continuous = false;
       recognition.interimResults = false;
-      recognition.onresult = (e: SpeechRecognitionEvent) => {
+      recognition.onresult = (e: any) => {
         const transcript = e.results[0][0].transcript;
         setInput(transcript);
         setIsListening(false);

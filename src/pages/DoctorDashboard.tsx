@@ -6,7 +6,7 @@ import PrescriptionUpload from '../components/PrescriptionUpload';
 import DoctorChatbot from '../components/DoctorChatbot';
 
 interface Props {
-  phone: string;
+  email: string;
   onLogout: () => void;
   theme: string;
   toggleTheme: () => void;
@@ -14,7 +14,7 @@ interface Props {
 
 type Tab = 'scanner' | 'recorder' | 'prescriptions' | 'chatbot';
 
-const DoctorDashboard: React.FC<Props> = ({ phone, onLogout, theme, toggleTheme }) => {
+const DoctorDashboard: React.FC<Props> = ({ email, onLogout, theme, toggleTheme }) => {
   const [tab, setTab] = useState<Tab>('scanner');
 
   const nav = [
@@ -42,7 +42,7 @@ const DoctorDashboard: React.FC<Props> = ({ phone, onLogout, theme, toggleTheme 
             border: '1px solid rgba(0,102,204,0.2)',
           }}>
             <div style={{ fontSize: 11, color: 'var(--color-text4)' }}>Logged in as</div>
-            <div style={{ fontSize: 13, fontWeight: 600, color: '#60a5fa' }}>Dr. +91 {phone.slice(-10)}</div>
+            <div style={{ fontSize: 13, fontWeight: 600, color: '#60a5fa', overflow: 'hidden', textOverflow: 'ellipsis' }}>Dr. {email}</div>
           </div>
         </div>
 

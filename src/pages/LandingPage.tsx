@@ -7,7 +7,7 @@ import type { Token } from '../utils/tokenUtils';
 import type { UserData } from '../components/AIAgent';
 
 interface Props {
-  onLogin: (type: 'user' | 'doctor', phone: string) => void;
+  onLogin: (type: 'user' | 'doctor', email: string) => void;
   onProfileSave: (profile: any) => void;
   theme: string;
   toggleTheme: () => void;
@@ -82,13 +82,17 @@ const LandingPage: React.FC<Props> = ({ onLogin, onProfileSave, theme, toggleThe
 
       {/* Hero */}
       <section style={{
-        padding: '80px 5% 60px',
-        background: 'linear-gradient(135deg,rgba(10,15,30,1) 0%,rgba(15,74,40,0.3) 50%,rgba(10,15,30,1) 100%)',
+        padding: '100px 5% 80px',
+        background: 'radial-gradient(circle at center top, var(--color-bg3) 0%, var(--color-bg) 70%)',
         position: 'relative', overflow: 'hidden', textAlign: 'center',
       }}>
-        {/* Decorative blobs */}
-        <div style={{ position: 'absolute', top: -80, left: '20%', width: 400, height: 400, borderRadius: '50%', background: 'rgba(26,107,60,0.08)', filter: 'blur(80px)', pointerEvents: 'none' }} />
-        <div style={{ position: 'absolute', bottom: -60, right: '15%', width: 300, height: 300, borderRadius: '50%', background: 'rgba(0,102,204,0.06)', filter: 'blur(60px)', pointerEvents: 'none' }} />
+        {/* Subtle grid overlay for professional tech feel */}
+        <div style={{
+          position: 'absolute', inset: 0,
+          backgroundImage: 'linear-gradient(var(--color-border) 1px, transparent 1px), linear-gradient(90deg, var(--color-border) 1px, transparent 1px)',
+          backgroundSize: '40px 40px', opacity: 0.3, pointerEvents: 'none', maskImage: 'radial-gradient(circle at center, black 40%, transparent 80%)',
+          WebkitMaskImage: 'radial-gradient(circle at center, black 40%, transparent 80%)'
+        }} />
 
         <div className="animate-fadeIn" style={{ position: 'relative', zIndex: 1 }}>
           <div className="badge badge-success" style={{ marginBottom: 20, display: 'inline-flex' }}>
@@ -192,7 +196,7 @@ const LandingPage: React.FC<Props> = ({ onLogin, onProfileSave, theme, toggleThe
           <div className="badge badge-warning" style={{ marginBottom: 12, display: 'inline-flex' }}>Get Access</div>
           <h2 style={{ fontSize: 'clamp(22px,4vw,36px)', fontWeight: 800, marginBottom: 12 }}>Login to Your Account</h2>
           <p style={{ color: 'var(--color-text3)', fontSize: 14, marginBottom: 36 }}>
-            Securely login with OTP-based verification
+            Securely login with your Email & Password
           </p>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit,minmax(280px,1fr))', gap: 20 }}>
             {[
@@ -249,7 +253,7 @@ const LandingPage: React.FC<Props> = ({ onLogin, onProfileSave, theme, toggleThe
       {showLogin && (
         <LoginModal
           initialTab={loginTab}
-          onLoginSuccess={(type, phone) => { setShowLogin(false); onLogin(type, phone); }}
+          onLoginSuccess={(type, email) => { setShowLogin(false); onLogin(type, email); }}
           onClose={() => setShowLogin(false)}
         />
       )}

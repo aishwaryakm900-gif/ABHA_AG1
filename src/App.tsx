@@ -4,9 +4,9 @@ import './i18n';
 import LandingPage from './pages/LandingPage';
 import UserDashboard from './pages/UserDashboard';
 import DoctorDashboard from './pages/DoctorDashboard';
-
+import { saveProfileToDB, getProfileFromDB } from './utils/storage';
 export interface UserProfile {
-  phone: string;
+  email: string;
   name: string;
   age: string;
   emergency: string;
@@ -27,26 +27,31 @@ export interface UploadedDoc {
   analysis: string;
 }
 
-type AppState = { view: 'landing' } | { view: 'user'; phone: string } | { view: 'doctor'; phone: string };
+type AppState = { view: 'landing' } | { view: 'user'; email: string } | { view: 'doctor'; email: string };
 
 const App: React.FC = () => {
   const [state, setState] = useState<AppState>({ view: 'landing' });
   const [profile, setProfile] = useState<UserProfile | null>(null);
 
+  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+
   // load/save profile so reports survive refresh
   React.useEffect(() => {
-    try {
-      const stored = localStorage.getItem('profile');
+    getProfileFromDB().then((stored) => {
       if (stored) {
-        setProfile(JSON.parse(stored));
+        setProfile(stored);
       }
-    } catch {}
+      setIsLoadingProfile(false);
+    }).catch(err => {
+      console.error("Failed to load profile:", err);
+      setIsLoadingProfile(false);
+    });
   }, []);
   React.useEffect(() => {
-    if (profile) {
-      localStorage.setItem('profile', JSON.stringify(profile));
+    if (profile && !isLoadingProfile) {
+      saveProfileToDB(profile).catch(console.error);
     }
-  }, [profile]);
+  }, [profile, isLoadingProfile]);
 
   // theme state (dark/light) persisted in localStorage and reflected on <html>
   const [theme, setTheme] = useState<string>(() => {
@@ -58,8 +63,16 @@ const App: React.FC = () => {
   }, [theme]);
   const toggleTheme = () => setTheme(t => (t === 'dark' ? 'light' : 'dark'));
 
-  const handleLogin = (type: 'user' | 'doctor', phone: string) => {
-    setState({ view: type, phone });
+  if (isLoadingProfile) {
+    return (
+      <div style={{ height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-bg)' }}>
+        <div className="animate-spin" style={{ width: 40, height: 40, border: '4px solid var(--color-primary-light)', borderTopColor: 'transparent', borderRadius: '50%' }} />
+      </div>
+    );
+  }
+
+  const handleLogin = (type: 'user' | 'doctor', email: string) => {
+    setState({ view: type, email });
   };
 
   const handleLogout = () => {
@@ -69,7 +82,7 @@ const App: React.FC = () => {
   if (state.view === 'user') {
     return (
       <UserDashboard
-        phone={state.phone}
+        email={state.email}
         profile={profile}
         onProfileUpdate={setProfile}
         onLogout={handleLogout}
@@ -82,7 +95,7 @@ const App: React.FC = () => {
   if (state.view === 'doctor') {
     return (
       <DoctorDashboard
-        phone={state.phone}
+        email={state.email}
         onLogout={handleLogout}
         theme={theme}
         toggleTheme={toggleTheme}

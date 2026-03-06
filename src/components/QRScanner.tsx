@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Html5Qrcode } from 'html5-qrcode';
-import { QrCode, X, FileText, AlertTriangle, PhoneCall, Droplet, User, Hash, Building2, Calendar, ZoomIn, RefreshCw } from 'lucide-react';
+import { QrCode, X, AlertTriangle, PhoneCall, Droplet, User, Hash, Building2, Calendar, ZoomIn, RefreshCw } from 'lucide-react';
 import type { QRPayload } from '../utils/tokenUtils';
 
 const QRScanner: React.FC = () => {

@@ -9,35 +9,41 @@
 }
 
 :root {
-  --color-primary: #1a6b3c;
-  --color-primary-dark: #0f4a28;
-  --color-primary-light: #22c55e;
-  --color-secondary: #0066cc;
+  --color-primary: #10b981;
+  --color-primary-dark: #059669;
+  --color-primary-light: #34d399;
+  --color-secondary: #3b82f6;
   --color-accent: #f59e0b;
   --color-danger: #ef4444;
   --color-success: #10b981;
-  --color-bg: #0a0f1e;
-  --color-bg2: #111827;
-  --color-bg3: #1f2937;
-  --color-bg4: #374151;
-  --color-surface: rgba(255, 255, 255, 0.04);
-  --color-surface2: rgba(255, 255, 255, 0.08);
-  --color-border: rgba(255, 255, 255, 0.1);
-  --color-border2: rgba(255, 255, 255, 0.15);
-  --color-text: #f9fafb;
-  --color-text2: #d1d5db;
-  --color-text3: #9ca3af;
-  --color-text4: #6b7280;
-  --radius-sm: 6px;
+  
+  /* Sleek Dark Mode (Slate) */
+  --color-bg: #0f172a;
+  --color-bg2: #1e293b;
+  --color-bg3: #334155;
+  --color-bg4: #475569;
+  --color-surface: rgba(255, 255, 255, 0.03);
+  --color-surface2: rgba(255, 255, 255, 0.06);
+  --color-border: rgba(255, 255, 255, 0.08);
+  --color-border2: rgba(255, 255, 255, 0.12);
+  
+  --color-text: #f8fafc;
+  --color-text2: #cbd5e1;
+  --color-text3: #94a3b8;
+  --color-text4: #64748b;
+  
+  --radius-sm: 8px;
   --radius-md: 12px;
-  --radius-lg: 18px;
+  --radius-lg: 20px;
   --radius-xl: 24px;
   --radius-full: 9999px;
-  --shadow-sm: 0 1px 3px rgba(0, 0, 0, 0.4);
-  --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.5);
-  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.6);
-  --shadow-glow: 0 0 30px rgba(26, 107, 60, 0.3);
-  --transition: all 0.2s ease;
+  
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.2);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.3);
+  --shadow-lg: 0 12px 32px rgba(0, 0, 0, 0.4);
+  --shadow-glow: 0 0 30px rgba(16, 185, 129, 0.2);
+  
+  --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   --font-main: "Inter", "Noto Sans", sans-serif;
 }
 
@@ -49,20 +55,25 @@ body,
   background: var(--color-bg);
   color: var(--color-text);
   overflow-x: hidden;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  letter-spacing: -0.01em;
 }
 
 /* light theme overrides */
 [data-theme="light"] {
-  --color-bg: #ffffff;
-  --color-bg2: #f9fafb;
-  --color-bg3: #e5e7eb;
-  --color-bg4: #d1d5db;
-  --color-text: #111827;
-  --color-text2: #4b5563;
-  --color-text3: #6b7280;
-  --color-text4: #9ca3af;
-  --color-border: rgba(0, 0, 0, 0.1);
-  --color-border2: rgba(0, 0, 0, 0.15);
+  --color-bg: #f8fafc;
+  --color-bg2: #ffffff;
+  --color-bg3: #f1f5f9;
+  --color-bg4: #e2e8f0;
+  --color-text: #0f172a;
+  --color-text2: #334155;
+  --color-text3: #64748b;
+  --color-text4: #94a3b8;
+  --color-border: rgba(15, 23, 42, 0.1);
+  --color-border2: rgba(15, 23, 42, 0.15);
+  --color-surface: rgba(15, 23, 42, 0.02);
+  --color-surface2: rgba(15, 23, 42, 0.04);
 }
 
 /* Scrollbar */
@@ -104,11 +115,11 @@ body,
     var(--color-primary-light)
   );
   color: #fff;
-  box-shadow: 0 4px 15px rgba(26, 107, 60, 0.4);
+  box-shadow: 0 4px 15px rgba(16, 185, 129, 0.3);
 }
 .btn-primary:hover {
   transform: translateY(-2px);
-  box-shadow: 0 6px 20px rgba(26, 107, 60, 0.5);
+  box-shadow: 0 6px 20px rgba(16, 185, 129, 0.4);
 }
 .btn-secondary {
   background: var(--color-surface2);
@@ -489,6 +500,7 @@ body,
   position: fixed;
   inset: 0;
   background: rgba(0, 0, 0, 0.7);
+  -webkit-backdrop-filter: blur(4px);
   backdrop-filter: blur(4px);
   z-index: 1000;
   display: flex;
@@ -621,17 +633,25 @@ body,
 
 /* Token print */
 @media print {
-  body {
-    background: #fff !important;
-    color: #000 !important;
+  body * {
+    visibility: hidden;
+  }
+  .token-print-area, .token-print-area * {
+    visibility: visible;
+  }
+  .token-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100% !important;
+    height: auto !important;
+    border-radius: 0 !important;
+    page-break-inside: avoid;
+    margin: 0;
+    padding: 0;
   }
   .no-print {
     display: none !important;
-  }
-  .token-print-area {
-    width: 100% !important;
-    height: 100% !important;
-    border-radius: 0 !important;
   }
 }
 

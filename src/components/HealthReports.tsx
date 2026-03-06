@@ -56,13 +56,20 @@ const HealthReports: React.FC<Props> = ({ docs: externalDocs, onDocsChange }) =>
 
   // Use external (profile-linked) docs if provided, else local state
   const files = externalDocs ?? localFiles;
+
+  // Track the most recent "files" to prevent stale closures (especially in setTimeout)
+  const filesRef = useRef(files);
+  filesRef.current = files;
+
   const setFiles = useCallback((updater: (prev: UploadedDoc[]) => UploadedDoc[]) => {
+    const nextFiles = updater(filesRef.current);
+    filesRef.current = nextFiles; // Optimistically handle rapid sync/async calls
     if (onDocsChange) {
-      onDocsChange(updater(files));
+      onDocsChange(nextFiles);
     } else {
-      setLocalFiles(updater);
+      setLocalFiles(nextFiles);
     }
-  }, [files, onDocsChange]);
+  }, [onDocsChange]);
 
   const processFile = (file: File) => {
     const reader = new FileReader();
@@ -132,7 +139,10 @@ const HealthReports: React.FC<Props> = ({ docs: externalDocs, onDocsChange }) =>
         <div style={{ fontWeight: 600, marginBottom: 6 }}>Drop files here or click to upload</div>
         <div style={{ fontSize: 13, color: 'var(--color-text4)' }}>Supports PDF, images, and documents · AI will explain findings in simple language</div>
         <input ref={inputRef} type="file" multiple accept=".pdf,image/*,.doc,.docx,.txt" style={{ display: 'none' }}
-          onChange={e => Array.from(e.target.files || []).forEach(processFile)} />
+          onChange={e => {
+            Array.from(e.target.files || []).forEach(processFile);
+            e.target.value = '';
+          }} />
       </div>
 
       {/* Files list */}

@@ -1,34 +1,58 @@
 import React, { useState, useRef } from 'react';
-import { X, User, Stethoscope, Phone, Shield, ExternalLink } from 'lucide-react';
-import { generateOTP } from '../utils/tokenUtils';
+import { X, User, Stethoscope, Mail, Lock, Eye, EyeOff, ShieldCheck, ExternalLink } from 'lucide-react';
 
 interface Props {
   initialTab?: 'user' | 'doctor';
-  onLoginSuccess: (type: 'user' | 'doctor', phone: string) => void;
+  onLoginSuccess: (type: 'user' | 'doctor', email: string) => void;
   onClose: () => void;
 }
 
 const LoginModal: React.FC<Props> = ({ initialTab = 'user', onLoginSuccess, onClose }) => {
   const [tab, setTab] = useState<'user' | 'doctor'>(initialTab);
-  const [subStep, setSubStep] = useState<'phone' | 'otp' | 'success'>('phone');
-  const [phone, setPhone] = useState('');
+  const [subStep, setSubStep] = useState<'credentials' | 'otp' | 'success'>('credentials');
+  
+  // Unified identifier (email or phone)
+  const [identifier, setIdentifier] = useState('');
+  
+  // Password flow states
+  const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  
+  // OTP flow states
   const [otpValues, setOtpValues] = useState(['', '', '', '', '', '']);
-  const [generatedOTP] = useState(generateOTP());
-  const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [generatedOTP] = useState(() => Math.floor(100000 + Math.random() * 900000).toString());
   const otpRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  const sendOTP = () => {
-    if (phone.replace(/\D/g,'').length < 10) {
-      setError('Please enter a valid 10-digit mobile number');
+  const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
+
+  // Detect if identifier looks like a phone number (10 digits)
+  const isPhone = /^\d{10}$/.test(identifier.replace(/\D/g, ''));
+
+  const handleLoginNext = () => {
+    if (isPhone) {
+      setError('');
+      setLoading(true);
+      setTimeout(() => {
+        setLoading(false);
+        setSubStep('otp');
+        alert(`Demo OTP for ${identifier}: ${generatedOTP}`);
+      }, 1200);
       return;
     }
+    
+    // Otherwise, treat as email login
+    if (!identifier.includes('@') || password.length < 6) {
+      setError('Please enter a valid email and a password (min 6 chars), or a 10-digit phone number');
+      return;
+    }
+    
     setError('');
     setLoading(true);
     setTimeout(() => {
       setLoading(false);
-      setSubStep('otp');
-      alert(`Demo OTP for ${phone}: ${generatedOTP}`);
+      setSubStep('success');
+      setTimeout(() => onLoginSuccess(tab, identifier), 800);
     }, 1200);
   };
 
@@ -39,7 +63,7 @@ const LoginModal: React.FC<Props> = ({ initialTab = 'user', onLoginSuccess, onCl
       setTimeout(() => {
         setLoading(false);
         setSubStep('success');
-        setTimeout(() => onLoginSuccess(tab, phone), 800);
+        setTimeout(() => onLoginSuccess(tab, identifier), 800);
       }, 1000);
     } else {
       setError('Invalid OTP. Try the demo OTP shown in the alert, or use 123456.');
@@ -60,6 +84,10 @@ const LoginModal: React.FC<Props> = ({ initialTab = 'user', onLoginSuccess, onCl
     }
   };
 
+  const handleForgotPassword = () => {
+    alert('Demo: A password reset link would be sent to your email.');
+  };
+
   return (
     <div className="overlay" onClick={e => e.target === e.currentTarget && onClose()}>
       <div className="modal animate-fadeIn" style={{ maxWidth: 440, position: 'relative' }}>
@@ -77,7 +105,7 @@ const LoginModal: React.FC<Props> = ({ initialTab = 'user', onLoginSuccess, onCl
             margin: '0 auto 12px', fontSize: 24,
           }}>🏥</div>
           <h2 style={{ fontSize: 22, fontWeight: 800, marginBottom: 4 }}>ABHA Login</h2>
-          <p style={{ color: 'var(--color-text3)', fontSize: 13 }}>Secure OTP-based authentication</p>
+          <p style={{ color: 'var(--color-text3)', fontSize: 13 }}>Secure Authentication</p>
         </div>
 
         {/* Tab switcher */}
@@ -86,7 +114,7 @@ const LoginModal: React.FC<Props> = ({ initialTab = 'user', onLoginSuccess, onCl
           borderRadius: 'var(--radius-lg)', padding: 4, marginBottom: 24,
         }}>
           {(['user', 'doctor'] as const).map(t => (
-            <button key={t} onClick={() => { setTab(t); setSubStep('phone'); setError(''); setPhone(''); setOtpValues(['','','','','','']); }}
+            <button key={t} onClick={() => { setTab(t); setSubStep('credentials'); setError(''); setIdentifier(''); setPassword(''); }}
               style={{
                 flex: 1, padding: '10px 0', border: 'none', borderRadius: 'var(--radius-md)',
                 background: tab === t ? 'var(--color-bg)' : 'transparent',
@@ -103,25 +131,52 @@ const LoginModal: React.FC<Props> = ({ initialTab = 'user', onLoginSuccess, onCl
         </div>
 
         {/* Steps */}
-        {subStep === 'phone' && (
+        {subStep === 'credentials' && (
           <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div className="input-group">
-              <label>Mobile Number</label>
-              <div style={{ display: 'flex', gap: 8 }}>
-                <div style={{
-                  background: 'var(--color-bg3)', border: '1px solid var(--color-border)',
-                  borderRadius: 'var(--radius-md)', padding: '12px 14px', color: 'var(--color-text3)', fontSize: 14,
-                }}>+91</div>
-                <input className="input" placeholder="10-digit mobile number"
-                  value={phone} onChange={e => setPhone(e.target.value)}
-                  onKeyDown={e => e.key === 'Enter' && sendOTP()}
-                  type="tel" maxLength={10}
-                  style={{ flex: 1 }} />
+              <label>Email or Phone Number</label>
+              <div style={{ position: 'relative' }}>
+                <Mail size={16} style={{ position: 'absolute', left: 14, top: 14, color: 'var(--color-text4)' }} />
+                <input className="input" placeholder="Enter email or 10-digit number"
+                  value={identifier} onChange={e => {
+                    setIdentifier(e.target.value);
+                    if (error) setError('');
+                  }}
+                  onKeyDown={e => {
+                     if (e.key === 'Enter') {
+                       if (isPhone || password) handleLoginNext();
+                     }
+                  }}
+                  style={{ width: '100%', paddingLeft: 40 }} />
               </div>
             </div>
+            
+            {!isPhone && (
+              <div className="input-group animate-fadeIn">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <label style={{ margin: 0 }}>Password</label>
+                  <button type="button" onClick={handleForgotPassword} style={{ background: 'none', border: 'none', color: 'var(--color-primary-light)', fontSize: 12, cursor: 'pointer', fontWeight: 600 }}>
+                    Forgot Password?
+                  </button>
+                </div>
+                <div style={{ position: 'relative' }}>
+                  <Lock size={16} style={{ position: 'absolute', left: 14, top: 14, color: 'var(--color-text4)' }} />
+                  <input className="input" placeholder="Enter your password"
+                    value={password} onChange={e => setPassword(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleLoginNext()}
+                    type={showPassword ? 'text' : 'password'}
+                    style={{ width: '100%', paddingLeft: 40, paddingRight: 40 }} />
+                  <button type="button" onClick={() => setShowPassword(!showPassword)}
+                    style={{ position: 'absolute', right: 14, top: 14, background: 'none', border: 'none', color: 'var(--color-text4)', cursor: 'pointer' }}>
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
+              </div>
+            )}
+            
             {error && <div className="text-danger text-sm">{error}</div>}
-            <button className="btn btn-primary w-full" onClick={sendOTP} disabled={loading}>
-              {loading ? 'Sending OTP...' : <><Phone size={15} /> Send OTP</>}
+            <button className="btn btn-primary w-full" onClick={handleLoginNext} disabled={loading || (!isPhone && !identifier)}>
+              {loading ? 'Authenticating...' : isPhone ? 'Send OTP' : <><ShieldCheck size={15} /> Login</>}
             </button>
             <div className="divider-text">OR</div>
             <a href="https://abha.abdm.gov.in" target="_blank" rel="noopener noreferrer"
@@ -135,7 +190,7 @@ const LoginModal: React.FC<Props> = ({ initialTab = 'user', onLoginSuccess, onCl
           <div className="animate-fadeIn" style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
             <div style={{ textAlign: 'center' }}>
               <div style={{ fontSize: 13, color: 'var(--color-text3)', marginBottom: 16 }}>
-                OTP sent to <strong>+91 {phone}</strong>
+                OTP sent to <strong>+91 {identifier}</strong>
               </div>
               <div className="otp-inputs">
                 {otpValues.map((v, i) => (
@@ -148,9 +203,9 @@ const LoginModal: React.FC<Props> = ({ initialTab = 'user', onLoginSuccess, onCl
             </div>
             {error && <div className="text-danger text-sm text-center">{error}</div>}
             <button className="btn btn-primary w-full" onClick={verifyOTP} disabled={loading || otpValues.join('').length < 6}>
-              {loading ? 'Verifying...' : <><Shield size={15} /> Verify OTP</>}
+              {loading ? 'Verifying...' : 'Verify OTP'}
             </button>
-            <button className="btn btn-ghost w-full" onClick={() => { setSubStep('phone'); setOtpValues(['','','','','','']); setError(''); }}>
+            <button className="btn btn-ghost w-full" onClick={() => { setSubStep('credentials'); setOtpValues(['','','','','','']); setError(''); }}>
               ← Change Number
             </button>
           </div>

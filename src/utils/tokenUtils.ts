@@ -1,13 +1,16 @@
 export interface Token {
   id: string;
-  tokenNumber: number;
-  phone: string;
+  email: string;
   abhaNumber: string;
   department: string;
+  tokenNumber: number;
   date: string;
   time: string;
   patientName: string;
   medicalRecordsRef: string;
+  estimatedTime?: string;
+  status: 'waiting' | 'called' | 'completed' | 'cancelled';
+  phone?: string;
   // Full profile embedded in token for QR doctor access
   age?: string;
   bloodGroup?: string;
@@ -35,36 +38,48 @@ export interface QRPayload {
 export let tokenCounter = 1;
 export const resetTokenCounter = () => { tokenCounter = 1; };
 
+// Assuming currentTokens is defined elsewhere or needs to be added
+const currentTokens: { [key: string]: number } = {};
+
 export function generateToken(
-  phone: string,
+  email: string,
   abhaNumber: string,
   department: string,
   patientName: string,
-  extras?: { age?: string; bloodGroup?: string; allergies?: string; emergency?: string }
+  extras?: { age?: string; bloodGroup?: string; allergies?: string; emergency?: string; phone?: string }
 ): Token {
+  const currentToken = currentTokens[department] || 0;
+  currentTokens[department] = currentToken + 1;
+
   const now = new Date();
+  const estimatedTime = new Date(now.getTime() + (currentToken * 15 * 60000));
+
   const id = `TKN-${now.getFullYear()}${String(now.getMonth() + 1).padStart(2, '0')}${String(now.getDate()).padStart(2, '0')}-${Math.random().toString(36).substring(2, 8).toUpperCase()}`;
   const medicalRecordsRef = `ABHA-REC-${abhaNumber.replace(/\s/g, '-')}`;
+
   return {
     id,
     tokenNumber: tokenCounter++,
-    phone: phone.replace(/.(?=.{4})/g, '*'),
+    email,
     abhaNumber,
     department,
     date: now.toLocaleDateString('en-IN'),
     time: now.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
     patientName,
     medicalRecordsRef,
+    estimatedTime: estimatedTime.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit' }),
+    status: 'waiting',
+    phone: extras?.phone,
     ...(extras || {}),
   };
 }
 
-export function buildQRPayload(token: Token, rawPhone: string): QRPayload {
+export function buildQRPayload(token: Token): QRPayload {
   return {
     patientRef: token.medicalRecordsRef,
     abha: token.abhaNumber,
     name: token.patientName,
-    phone: token.phone,
+    phone: token.phone || '',
     age: token.age,
     bloodGroup: token.bloodGroup,
     allergies: token.allergies,
